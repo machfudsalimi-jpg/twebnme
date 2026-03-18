@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Template": {
+      "title": "Twibbon Template",
+      "description": "A frame template for the Twibbon Studio.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the template." },
+        "url": { "type": "string", "description": "URL of the template image." },
+        "name": { "type": "string", "description": "Name of the template." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when the template was created." }
+      },
+      "required": ["id", "url", "name", "createdAt"]
+    }
+  },
+  "firestore": {
+    "templates": {
+      "schema": "Template",
+      "description": "Collection of Twibbon templates managed by the admin."
+    }
+  }
+}

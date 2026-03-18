@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Montserrat:wght@400;700&family=Playfair+Display:wght@400;700&family=Space+Grotesk:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Bebas+Neue&family=Pacifico&family=Lobster&family=Dancing+Script:wght@400;700&family=Oswald:wght@400;700&family=Quicksand:wght@400;700&family=Kanit:wght@400;700&family=Poppins:wght@400;700&family=Fredoka+One&family=Abril+Fatface&family=Satisfy&family=Great+Vibes&family=Alex+Brush&family=Cookie&family=Anton&family=Paytone+One&family=Titan+One&family=Luckiest+Guy&family=Passion+One:wght@400;700;900&family=Patua+One&family=Righteous&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-roboto: "Roboto", sans-serif;
+  --font-opensans: "Open Sans", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+  --font-playfair: "Playfair Display", serif;
+  --font-space: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-slate-50 text-slate-900;
+  }
+}
