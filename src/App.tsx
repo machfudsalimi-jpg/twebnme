@@ -1168,6 +1168,34 @@ function TwibbonApp() {
                   </button>
                 )}
               </div>
+
+              {/* Dynamic Hint */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center gap-3 mt-12"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-indigo-200"></div>
+                  <span className="text-[11px] font-black text-indigo-500 uppercase tracking-[0.4em] drop-shadow-sm">
+                    Silahkan pilih template di bawah
+                  </span>
+                  <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-indigo-200"></div>
+                </div>
+                <motion.div
+                  animate={{ y: [0, 8, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="text-indigo-400"
+                >
+                  <div className="w-6 h-10 rounded-full border-2 border-indigo-100 flex items-start justify-center p-1">
+                    <motion.div 
+                      animate={{ y: [0, 12, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="w-1 h-2 bg-indigo-400 rounded-full"
+                    />
+                  </div>
+                </motion.div>
+              </motion.div>
             </motion.div>
           </div>
 
