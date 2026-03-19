@@ -40,8 +40,7 @@ service cloud.firestore {
     }
 
     function isValidTemplate(data) {
-      return data.keys().hasAll(['id', 'url', 'name', 'createdAt']) &&
-             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+      return data.keys().hasAll(['url', 'name', 'createdAt']) &&
              data.url is string && (data.url.startsWith("https://") || data.url.startsWith("data:image/")) && data.url.size() < 1048000 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 255 &&
              data.createdAt is timestamp;
@@ -53,10 +52,8 @@ service cloud.firestore {
 
     match /templates/{templateId} {
       allow read: if true;
-      allow create, update, delete: if isAuthenticated() && (
-        request.auth.uid == "DOIsM9DsZYdGRAbwMNhH7QjdjAt2" ||
-        request.auth.token.email == "machfudsalimi@gmail.com"
-      );
+      allow create, update: if isAdmin() && isValidTemplate(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {

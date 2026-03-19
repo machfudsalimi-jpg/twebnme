@@ -645,6 +645,7 @@ function TwibbonApp() {
   const [isAdminUploading, setIsAdminUploading] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
   
   const stageRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -664,8 +665,8 @@ function TwibbonApp() {
     const q = query(collection(db, 'templates'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedTemplates = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as Template[];
       setTemplates(fetchedTemplates);
       
@@ -699,15 +700,22 @@ function TwibbonApp() {
     testConnection();
   }, []);
 
-  const handleUserPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUserPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      setUserImage(url);
+      try {
+        const compressedUrl = await compressImage(file, 1200, 1200);
+        setUserImage(compressedUrl);
+      } catch (error) {
+        console.error("Gagal mengompres foto:", error);
+        // Fallback to original if compression fails
+        const url = URL.createObjectURL(file);
+        setUserImage(url);
+      }
     }
   };
 
-  const compressImage = (file: File, maxWidth = 600, maxHeight = 600): Promise<string> => {
+  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -759,7 +767,8 @@ function TwibbonApp() {
       try {
         for (const file of filesToUpload) {
           try {
-            const compressedUrl = await compressImage(file);
+            // Increase compression for templates too, but keep 1MB limit
+            const compressedUrl = await compressImage(file, 1200, 1200);
             
             // Check size again after compression (1MB limit for Firestore)
             // We use 1,000,000 bytes to be safe with document overhead
@@ -769,7 +778,6 @@ function TwibbonApp() {
             }
 
             await addDoc(collection(db, 'templates'), {
-              id: Date.now().toString() + Math.random().toString(36).substring(7),
               url: compressedUrl,
               name: file.name.replace('.png', ''),
               createdAt: serverTimestamp()
@@ -789,12 +797,11 @@ function TwibbonApp() {
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (window.confirm('Hapus template ini?')) {
-      try {
-        await deleteDoc(doc(db, 'templates', id));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, 'templates');
-      }
+    try {
+      await deleteDoc(doc(db, 'templates', id));
+      setTemplateToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'templates');
     }
   };
 
@@ -1383,20 +1390,39 @@ function TwibbonApp() {
                           <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-wider">PNG ASSET</p>
                         </div>
                         <div className="flex items-center gap-1">
-                          <button 
-                            onClick={() => handleEditTemplateName(template.id, template.name)}
-                            className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-300"
-                            title="Ubah Nama"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteTemplate(template.id)}
-                            className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-300"
-                            title="Hapus"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {templateToDelete === template.id ? (
+                            <div className="flex items-center gap-1 bg-red-50 p-1 rounded-xl border border-red-100">
+                              <button 
+                                onClick={() => handleDeleteTemplate(template.id)}
+                                className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black rounded-lg hover:bg-red-600 transition-colors uppercase tracking-wider"
+                              >
+                                Ya, Hapus
+                              </button>
+                              <button 
+                                onClick={() => setTemplateToDelete(null)}
+                                className="px-3 py-1.5 bg-white text-slate-400 text-[10px] font-black rounded-lg hover:bg-slate-50 transition-colors uppercase tracking-wider border border-slate-100"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button 
+                                onClick={() => handleEditTemplateName(template.id, template.name)}
+                                className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-300"
+                                title="Ubah Nama"
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                              <button 
+                                onClick={() => setTemplateToDelete(template.id)}
+                                className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-300"
+                                title="Hapus"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
