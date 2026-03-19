@@ -32,8 +32,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "machfudsalimi@gmail.com" ||
-        request.auth.uid == "DOIsM9DsZYdGRAbwMNhH7QjdjAt2" ||
+        (request.auth.token.email == "machfudsalimi@gmail.com") ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
@@ -41,9 +40,11 @@ service cloud.firestore {
 
     function isValidTemplate(data) {
       return data.keys().hasAll(['url', 'name', 'createdAt']) &&
-             data.url is string && (data.url.startsWith("https://") || data.url.startsWith("data:image/")) && data.url.size() < 1048000 &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 255 &&
-             data.createdAt is timestamp;
+             data.url is string && data.url.size() < 1048576 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 500 &&
+             (data.createdAt == request.time || data.createdAt is timestamp) &&
+             (!('width' in data) || data.width is number) &&
+             (!('height' in data) || data.height is number);
     }
 
     // ===============================================================

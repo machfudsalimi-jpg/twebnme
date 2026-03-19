@@ -50,6 +50,8 @@ interface Template {
   id: string;
   url: string;
   name: string;
+  width?: number;
+  height?: number;
   createdAt?: any;
 }
 
@@ -207,7 +209,7 @@ const FONTS = [
 
 const TwibbonCanvas = ({ 
   userImageUrl, 
-  templateUrl, 
+  template, 
   stageRef,
   onDownload,
   textOverlays,
@@ -216,7 +218,7 @@ const TwibbonCanvas = ({
   setSelectedTextId
 }: { 
   userImageUrl: string | null, 
-  templateUrl: string | null, 
+  template: Template | null, 
   stageRef: React.RefObject<any>,
   onDownload: (uri: string) => void,
   textOverlays: TextOverlay[],
@@ -225,7 +227,7 @@ const TwibbonCanvas = ({
   setSelectedTextId: React.Dispatch<React.SetStateAction<string | null>>
 }) => {
   const [uImg] = useImage(userImageUrl || '');
-  const [tImg] = useImage(templateUrl || '');
+  const [tImg] = useImage(template?.url || '');
   const [imageConfig, setImageConfig] = useState({
     x: 0,
     y: 0,
@@ -245,35 +247,51 @@ const TwibbonCanvas = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSelected, setIsSelected] = useState(false);
   const [stageScale, setStageScale] = useState(1);
-  const SIZE = 500;
+  const [canvasWidth, setCanvasWidth] = useState(500);
+  const [canvasHeight, setCanvasHeight] = useState(500);
+
+  // Calculate canvas dimensions based on template
+  useEffect(() => {
+    if (template?.width && template?.height) {
+      // Use actual template dimensions for the stage
+      // This ensures the preview and download match the original template size
+      setCanvasWidth(template.width);
+      setCanvasHeight(template.height);
+    } else {
+      // Default square for old templates without dimensions
+      setCanvasWidth(500);
+      setCanvasHeight(500);
+    }
+  }, [template]);
 
   // Responsive scaling
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
-        setStageScale(containerWidth / SIZE);
+        // Scale the stage to fit the container width
+        setStageScale(containerWidth / canvasWidth);
       }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [canvasWidth]);
 
   // Initial centering and scaling
   useEffect(() => {
     if (uImg) {
-      const scale = Math.max(SIZE / uImg.width, SIZE / uImg.height);
+      const scale = Math.max(canvasWidth / uImg.width, canvasHeight / uImg.height);
       setImageConfig({
-        x: (SIZE - uImg.width * scale) / 2,
-        y: (SIZE - uImg.height * scale) / 2,
+        x: (canvasWidth - uImg.width * scale) / 2,
+        y: (canvasHeight - uImg.height * scale) / 2,
         scaleX: scale,
         scaleY: scale,
         rotation: 0,
       });
       setIsSelected(true);
     }
-  }, [uImg]);
+  }, [uImg, canvasWidth, canvasHeight]);
 
   // Apply filters
   useEffect(() => {
@@ -380,11 +398,18 @@ const TwibbonCanvas = ({
   };
 
   return (
-    <div ref={containerRef} className="relative bg-white rounded-[40px] overflow-hidden shadow-2xl border-8 border-white aspect-square w-full max-w-[500px] mx-auto group">
-      <div style={{ transform: `scale(${stageScale})`, transformOrigin: 'top left', width: SIZE, height: SIZE }}>
+    <div 
+      ref={containerRef} 
+      className="relative bg-white rounded-[40px] overflow-hidden shadow-2xl border-8 border-white w-full mx-auto group"
+      style={{ 
+        aspectRatio: `${canvasWidth}/${canvasHeight}`,
+        maxWidth: canvasWidth > canvasHeight ? '600px' : '400px'
+      }}
+    >
+      <div style={{ transform: `scale(${stageScale})`, transformOrigin: 'top left', width: canvasWidth, height: canvasHeight }}>
         <Stage 
-          width={SIZE} 
-          height={SIZE} 
+          width={canvasWidth} 
+          height={canvasHeight} 
           ref={stageRef} 
           className="cursor-move"
           onMouseDown={(e) => {
@@ -397,7 +422,7 @@ const TwibbonCanvas = ({
           onWheel={handleWheel}
         >
           <Layer>
-            <Rect width={SIZE} height={SIZE} fill="#ffffff" />
+            <Rect width={canvasWidth} height={canvasHeight} fill="#ffffff" />
             {uImg && (
               <KonvaImage
                 image={uImg}
@@ -438,8 +463,8 @@ const TwibbonCanvas = ({
             {tImg && (
               <KonvaImage
                 image={tImg}
-                width={SIZE}
-                height={SIZE}
+                width={canvasWidth}
+                height={canvasHeight}
                 listening={false}
               />
             )}
@@ -601,10 +626,10 @@ const TwibbonCanvas = ({
             </button>
             <button 
               onClick={() => {
-                const scale = Math.max(SIZE / uImg.width, SIZE / uImg.height);
+                const scale = Math.max(canvasWidth / uImg.width, canvasHeight / uImg.height);
                 setImageConfig({
-                  x: (SIZE - uImg.width * scale) / 2,
-                  y: (SIZE - uImg.height * scale) / 2,
+                  x: (canvasWidth - uImg.width * scale) / 2,
+                  y: (canvasHeight - uImg.height * scale) / 2,
                   scaleX: scale,
                   scaleY: scale,
                   rotation: 0,
@@ -647,6 +672,16 @@ function TwibbonApp() {
   const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
   
+  const isAdmin = currentUser?.email === 'machfudsalimi@gmail.com';
+  
+  useEffect(() => {
+    if (currentUser) {
+      console.log(`Current User: ${currentUser.email}, Admin Status: ${isAdmin}`);
+    } else {
+      console.log("No user logged in");
+    }
+  }, [currentUser, isAdmin]);
+  
   const stageRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const adminFileInputRef = useRef<HTMLInputElement>(null);
@@ -664,6 +699,7 @@ function TwibbonApp() {
   useEffect(() => {
     const q = query(collection(db, 'templates'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log(`Received snapshot with ${snapshot.docs.length} templates`);
       const fetchedTemplates = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
@@ -704,7 +740,7 @@ function TwibbonApp() {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const compressedUrl = await compressImage(file, 1200, 1200);
+        const { url: compressedUrl } = await compressImage(file, 1200, 1200);
         setUserImage(compressedUrl);
       } catch (error) {
         console.error("Gagal mengompres foto:", error);
@@ -715,7 +751,8 @@ function TwibbonApp() {
     }
   };
 
-  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200): Promise<string> => {
+  const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.8): Promise<{ url: string, width: number, height: number }> => {
+    console.log(`Starting compression for ${file.name}, max dimensions: ${maxWidth}x${maxHeight}`);
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -723,85 +760,135 @@ function TwibbonApp() {
         const img = new Image();
         img.src = event.target?.result as string;
         img.onload = () => {
+          console.log(`Image loaded: ${img.width}x${img.height}`);
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
 
+          const ratio = width / height;
           if (width > height) {
             if (width > maxWidth) {
-              height *= maxWidth / width;
               width = maxWidth;
+              height = width / ratio;
             }
           } else {
             if (height > maxHeight) {
-              width *= maxHeight / height;
               height = maxHeight;
+              width = height * ratio;
             }
           }
 
           canvas.width = width;
           canvas.height = height;
+          console.log(`Resizing to: ${width}x${height}`);
           const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+          }
           
           // We must use PNG to preserve transparency for Twibbons
-          const dataUrl = canvas.toDataURL('image/png');
-          resolve(dataUrl);
+          let dataUrl = canvas.toDataURL('image/png');
+          console.log(`Initial compression complete. Data URL length: ${dataUrl.length}`);
+          
+          // If still too large for Firestore (1MB limit), reduce resolution further
+          if (dataUrl.length > 1040000) {
+            console.log("Data URL too large for Firestore, reducing resolution...");
+            const scaleFactor = 0.8;
+            const newMaxWidth = Math.floor(width * scaleFactor);
+            const newMaxHeight = Math.floor(height * scaleFactor);
+            
+            // Recurse with smaller dimensions
+            compressImage(file, newMaxWidth, newMaxHeight)
+              .then(resolve)
+              .catch(reject);
+          } else {
+            resolve({ url: dataUrl, width, height });
+          }
         };
-        img.onerror = reject;
+        img.onerror = (err) => {
+          console.error(`Image load error for ${file.name}:`, err);
+          reject(err);
+        };
       };
-      reader.onerror = reject;
+      reader.onerror = (err) => {
+        console.error(`FileReader error for ${file.name}:`, err);
+        reject(err);
+      };
     });
   };
 
   const handleAdminTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log(`Upload attempt. Admin: ${isAdmin}, User: ${currentUser?.email}, Verified: ${currentUser?.emailVerified}`);
+    if (!isAdmin || !currentUser) {
+      alert('Anda harus login sebagai admin untuk mengunggah template.');
+      return;
+    }
     const files = e.target.files;
     if (files && files.length > 0) {
-      const filesToUpload = Array.from(files).slice(0, 4); // Limit to 4 files
+      const filesToUpload = Array.from(files);
       
-      if (files.length > 4) {
-        alert('Maksimal 4 file yang dapat diunggah sekaligus.');
-      }
-
+      console.log(`Total files selected: ${files.length}`);
       setIsAdminUploading(true);
+      console.log("Starting template upload for", filesToUpload.length, "files");
       try {
         for (const file of filesToUpload) {
           try {
-            // Increase compression for templates too, but keep 1MB limit
-            const compressedUrl = await compressImage(file, 1200, 1200);
+            console.log(`Processing file: ${file.name}, size: ${file.size}`);
+            // Use larger max dimensions to support 1080x1920
+            const { url: compressedUrl, width, height } = await compressImage(file, 1080, 1920);
+            console.log(`Compressed size for ${file.name}: ${compressedUrl.length} characters, dimensions: ${width}x${height}`);
             
             // Check size again after compression (1MB limit for Firestore)
-            // We use 1,000,000 bytes to be safe with document overhead
-            if (compressedUrl.length > 1000000) {
-              alert(`Ukuran template ${file.name} masih terlalu besar (maksimal 1MB).`);
+            if (compressedUrl.length > 1048000) { // Slightly less than 1MB to be safe
+              alert(`Ukuran template ${file.name} masih terlalu besar (${(compressedUrl.length / 1024 / 1024).toFixed(2)}MB). Maksimal 1MB setelah kompresi. Silakan gunakan gambar dengan resolusi lebih rendah atau kompresi PNG yang lebih baik.`);
               continue;
             }
 
-            await addDoc(collection(db, 'templates'), {
+            console.log(`Uploading ${file.name} to Firestore...`);
+            const cleanName = file.name.replace(/\.(png|jpg|jpeg)$/i, '');
+            const docRef = await addDoc(collection(db, 'templates'), {
               url: compressedUrl,
-              name: file.name.replace('.png', ''),
+              name: cleanName,
+              width,
+              height,
               createdAt: serverTimestamp()
             });
+            console.log(`Successfully uploaded ${file.name} as ${cleanName} with ID: ${docRef.id}`);
           } catch (error: any) {
+            console.error(`Upload failed for ${file.name}:`, error);
             const errorMsg = error instanceof Error ? error.message : String(error);
             alert(`Gagal mengunggah ${file.name}: ${errorMsg}`);
-            handleFirestoreError(error, OperationType.CREATE, 'templates');
           }
         }
+      } catch (outerError) {
+        console.error("Outer upload error:", outerError);
+        alert(`Terjadi kesalahan sistem saat mengunggah: ${outerError instanceof Error ? outerError.message : String(outerError)}`);
       } finally {
         setIsAdminUploading(false);
         // Reset input
-        e.target.value = '';
+        if (e.target) e.target.value = '';
       }
     }
   };
 
   const handleDeleteTemplate = async (id: string) => {
+    console.log(`Delete attempt for ${id}. Admin: ${isAdmin}, User: ${currentUser?.email}, Verified: ${currentUser?.emailVerified}`);
+    if (!isAdmin) {
+      console.warn("Delete attempt by non-admin user");
+      return;
+    }
+    console.log(`Attempting to delete template with ID: ${id}`);
     try {
       await deleteDoc(doc(db, 'templates', id));
+      console.log(`Successfully deleted template with ID: ${id}`);
       setTemplateToDelete(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'templates');
+    } catch (error: any) {
+      console.error("Gagal menghapus template:", error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      alert(`Gagal menghapus template: ${errorMsg}`);
+      handleFirestoreError(error, OperationType.DELETE, `templates/${id}`);
     }
   };
 
@@ -818,7 +905,8 @@ function TwibbonApp() {
 
   const downloadTwibbon = () => {
     if (stageRef.current) {
-      const uri = stageRef.current.toDataURL({ pixelRatio: 2 });
+      // Export at actual stage size (which matches template size)
+      const uri = stageRef.current.toDataURL({ pixelRatio: 1 });
       const link = document.createElement('a');
       link.download = `twibbon-${Date.now()}.png`;
       link.href = uri;
@@ -854,8 +942,6 @@ function TwibbonApp() {
       console.error("Logout Error:", error);
     }
   };
-
-  const isAdmin = currentUser?.email === 'machfudsalimi@gmail.com';
 
   const handleMagicSuggest = async () => {
     if (!userImage) return;
@@ -899,12 +985,16 @@ function TwibbonApp() {
   };
 
   const addTextOverlay = () => {
+    const template = templates.find(t => t.id === selectedTemplateId);
+    const canvasW = template?.width || 500;
+    const canvasH = template?.height || 500;
+    
     const newText: TextOverlay = {
       id: 'text-' + Date.now(),
       text: 'Klik untuk Edit',
-      x: 150,
-      y: 150,
-      fontSize: 30,
+      x: canvasW / 2 - 100,
+      y: canvasH / 2,
+      fontSize: Math.max(30, Math.floor(canvasW / 15)),
       fill: '#000000',
       fontFamily: 'Inter',
       stroke: '#ffffff',
@@ -1013,7 +1103,7 @@ function TwibbonApp() {
             >
               <TwibbonCanvas 
                 userImageUrl={userImage} 
-                templateUrl={selectedTemplate?.url || null} 
+                template={selectedTemplate || null} 
                 stageRef={stageRef}
                 onDownload={downloadTwibbon}
                 textOverlays={textOverlays}
@@ -1355,7 +1445,10 @@ function TwibbonApp() {
                     <div>
                       <h2 className="text-2xl font-black text-slate-800 tracking-tight">Koleksi Bingkai</h2>
                       <p className="text-xs text-slate-400 font-medium mt-1">Kelola aset PNG transparan Anda</p>
-                      <p className="text-[10px] text-indigo-400 font-bold mt-2 uppercase tracking-wider">Admin: {currentUser?.email}</p>
+                      <p className="text-[10px] text-indigo-400 font-bold mt-2 uppercase tracking-wider">
+                        Admin: {currentUser?.email || 'Not Logged In'}
+                        {currentUser && !currentUser.emailVerified && <span className="text-red-500 ml-2">(Email Belum Diverifikasi)</span>}
+                      </p>
                     </div>
                     <button 
                       onClick={() => adminFileInputRef.current?.click()}
@@ -1368,7 +1461,7 @@ function TwibbonApp() {
                       type="file" 
                       ref={adminFileInputRef} 
                       onChange={handleAdminTemplateUpload} 
-                      accept="image/png" 
+                      accept="image/png, image/jpeg" 
                       multiple
                       className="hidden" 
                     />
