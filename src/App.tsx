@@ -21,7 +21,8 @@ import {
   RotateCcw,
   LogOut,
   AlertCircle,
-  Edit2
+  Edit2,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from './firebase';
@@ -916,6 +917,32 @@ function TwibbonApp() {
     }
   };
 
+  const shareTwibbon = async () => {
+    if (stageRef.current) {
+      try {
+        const dataUrl = stageRef.current.toDataURL({ pixelRatio: 1 });
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `twibbon-${Date.now()}.png`, { type: 'image/png' });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Twibbon Saya',
+            text: 'Lihat Twibbon yang saya buat!',
+          });
+        } else {
+          // Fallback to download if sharing is not supported
+          downloadTwibbon();
+          alert('Sharing tidak didukung di browser ini. Twibbon telah diunduh ke galeri Anda.');
+        }
+      } catch (error) {
+        console.error('Error sharing twibbon:', error);
+        downloadTwibbon();
+      }
+    }
+  };
+
   const handleLogoClick = () => {
     setLogoClickCount(prev => prev + 1);
     if (logoClickCount + 1 >= 5) {
@@ -1169,7 +1196,16 @@ function TwibbonApp() {
                   className="group flex items-center justify-center gap-3 px-10 py-4 bg-indigo-600 text-white rounded-[24px] text-sm font-black hover:bg-indigo-700 transition-all duration-300 shadow-2xl shadow-indigo-200 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed active:scale-95"
                 >
                   <Download size={20} className="group-hover:translate-y-1 transition-transform" />
-                  UNDUH SEKARANG
+                  UNDUH
+                </button>
+
+                <button 
+                  onClick={shareTwibbon}
+                  disabled={!userImage || !selectedTemplateId}
+                  className="group flex items-center justify-center gap-3 px-10 py-4 bg-emerald-600 text-white rounded-[24px] text-sm font-black hover:bg-emerald-700 transition-all duration-300 shadow-2xl shadow-emerald-200 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed active:scale-95"
+                >
+                  <Share2 size={20} className="group-hover:scale-110 transition-transform" />
+                  BAGIKAN
                 </button>
 
                 {userImage && (
